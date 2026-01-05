@@ -5,7 +5,7 @@ A collection of CLI shortcuts for [Graphite](https://graphite.dev).
 ## Install
 
 ```bash
-brew tap adambowker/graphite-goodies
+brew tap adboio/graphite-goodies
 brew install graphite-goodies
 ```
 
@@ -17,8 +17,8 @@ Interactive prompt for creating branches with conventional commit messages.
 
 ```
 $ gtc
-Type: feat xfix chore f
-Scope: surveys product tours p
+Type: [f]feat [x]fix [c]chore f
+Scope: [s]surveys [p]product tours p
 Message: add URL targeting
 → gt create --all --message "feat(product tours): add URL targeting"
 Run? yes no y
@@ -26,7 +26,7 @@ Run? yes no y
 
 ## Configuration
 
-On first run, `gtc` creates a config file at `~/.config/graphite-goodies/gtc.conf`:
+On first run, `gtc` runs a setup wizard to help you create a config file at `~/.config/graphite-goodies/gtc.conf`:
 
 ```bash
 # gtc config
@@ -37,7 +37,7 @@ types=f:feat,x:fix,c:chore
 scopes=s:surveys,p:product tours
 ```
 
-Customize your types and scopes by editing this file. For example:
+Customize your types and scopes any time by running `gg-setup`.
 
 ```bash
 types=f:feat,x:fix,c:chore,d:docs,r:refactor
