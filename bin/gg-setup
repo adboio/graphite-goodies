@@ -1,0 +1,163 @@
+#!/bin/zsh
+# gg-setup - Interactive setup for graphite-goodies
+# Part of graphite-goodies
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/graphite-goodies"
+CONFIG_FILE="$CONFIG_DIR/gtc.conf"
+
+# Colors
+reset=$'\e[0m' bold=$'\e[1m' dim=$'\e[2m'
+cyan=$'\e[36m' green=$'\e[32m' yellow=$'\e[33m' red=$'\e[31m'
+
+# Auto-generate key from value, avoiding conflicts
+generate_key() {
+  local value="$1"
+  local used_keys="$2"
+  local key=""
+
+  # Try each character in the value
+  for (( i=0; i<${#value}; i++ )); do
+    local char="${value:$i:1}"
+    char="${char:l}"  # lowercase
+    [[ "$char" == " " ]] && continue
+    if [[ ! "$used_keys" =~ "$char" ]]; then
+      echo "$char"
+      return
+    fi
+  done
+
+  # Fallback to numbers if all letters taken
+  for n in {1..9}; do
+    if [[ ! "$used_keys" =~ "$n" ]]; then
+      echo "$n"
+      return
+    fi
+  done
+}
+
+# Collect items with auto-generated keys
+collect_items() {
+  local prompt="$1"
+  local -a values=()
+  local used_keys=""
+  local result=""
+
+  echo "${dim}${prompt}${reset}" >&2
+  echo "${dim}Enter each on its own line. Leave blank when done.${reset}" >&2
+  echo >&2
+
+  local count=0
+  while true; do
+    ((count++))
+    echo -n "${dim}${count}.${reset} " >&2
+    read value
+    if [[ -z "$value" ]]; then
+      if [[ $count -eq 1 ]]; then
+        echo "   ${yellow}↳ enter at least one${reset}" >&2
+        ((count--))
+        continue
+      fi
+      break
+    fi
+    values+=("$value")
+  done
+
+  # Generate keys
+  for value in "${values[@]}"; do
+    local key=$(generate_key "$value" "$used_keys")
+    used_keys+="$key"
+    [[ -n "$result" ]] && result+=","
+    result+="$key:$value"
+  done
+
+  echo "$result"
+}
+
+# Show preview of key mappings
+show_preview() {
+  local items="$1"
+  IFS=',' read -A pairs <<< "$items"
+
+  for pair in "${pairs[@]}"; do
+    local key="${pair%%:*}"
+    local value="${pair#*:}"
+    echo "  ${dim}[${reset}${bold}${cyan}${key}${reset}${dim}]${reset} ${value}"
+  done
+}
+
+echo
+echo "${bold}Welcome to graphite-goodies!${reset}"
+echo
+echo "${dim}This sets up ${reset}gtc${dim}, a quick way to create commits like:${reset}"
+echo
+echo "  ${dim}gt create --all --message \"${reset}${bold}feat(api)${reset}${dim}: add user endpoint\"${reset}"
+echo "                              ${dim}^^^^${reset} ${dim}^^^${reset}"
+echo "                              ${dim}type${reset} ${dim}scope${reset}"
+echo
+
+# Types setup
+echo "${bold}Commit types${reset}"
+echo "${dim}Standard types are: feat, fix, chore, refactor, docs${reset}"
+echo -n "${dim}Use standard types?${reset} ${bold}${green}y${reset}${dim}es${reset} ${bold}${red}n${reset}${dim}o${reset} "
+read -k1 use_default_types
+echo
+echo
+
+if [[ $use_default_types == "y" ]]; then
+  types="f:feat,x:fix,c:chore,r:refactor,d:docs"
+  echo "${dim}Using:${reset}"
+  show_preview "$types"
+else
+  types=$(collect_items "Enter your commit types (e.g., feat, fix, chore):")
+  echo
+  echo "${dim}Generated:${reset}"
+  show_preview "$types"
+fi
+echo
+
+# Scopes setup
+echo "${bold}Scopes${reset}"
+echo "${dim}These are areas of your codebase (e.g., api, web, auth).${reset}"
+echo
+scopes=$(collect_items "Enter your scopes:")
+echo
+echo "${dim}Generated:${reset}"
+show_preview "$scopes"
+echo
+
+# Show example
+echo "${bold}Example commit${reset}"
+local first_type="${${types%%,*}#*:}"
+local first_scope="${${scopes%%,*}#*:}"
+echo "${dim}With this config, you could create:${reset}"
+echo
+echo "  ${dim}gt create --all --message \"${reset}${bold}${first_type}(${first_scope})${reset}${dim}: your message here\"${reset}"
+echo
+
+# Confirm
+echo -n "${dim}Save this config?${reset} ${bold}${green}y${reset}${dim}es${reset} ${bold}${red}n${reset}${dim}o${reset} "
+read -k1 confirm
+echo
+
+if [[ $confirm != "y" ]]; then
+  echo "${yellow}Setup cancelled.${reset}"
+  exit 1
+fi
+
+# Save config
+mkdir -p "$CONFIG_DIR"
+cat > "$CONFIG_FILE" << EOF
+# gtc config - edit anytime or run gg-setup to reconfigure
+
+types="$types"
+scopes="$scopes"
+EOF
+
+echo
+echo "${green}Setup complete!${reset} ${dim}Config saved to ${CONFIG_FILE}${reset}"
+echo "${dim}Run ${reset}gg-setup${dim} anytime to reconfigure.${reset}"
+echo
+echo "${dim}─────────────────────────────────────────${reset}"
+echo
+echo "${bold}New commit${reset}"
+echo

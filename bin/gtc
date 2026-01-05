@@ -1,0 +1,104 @@
+#!/bin/zsh
+# gtc - Quick conventional commits for Graphite
+# Part of graphite-goodies
+
+set -e
+
+CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/graphite-goodies/gtc.conf"
+
+# Colors
+reset=$'\e[0m' bold=$'\e[1m' dim=$'\e[2m'
+cyan=$'\e[36m' green=$'\e[32m' yellow=$'\e[33m' red=$'\e[31m'
+colors=("$cyan" "$yellow" "$green" "$red")
+
+# Default config
+default_types="f:feat,x:fix,c:chore"
+default_scopes="s:surveys,p:product tours"
+
+# Load or create config
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  # Find gg-setup relative to this script
+  SCRIPT_DIR="${0:A:h}"
+  if [[ -x "$SCRIPT_DIR/gg-setup" ]]; then
+    "$SCRIPT_DIR/gg-setup"
+  else
+    # Fallback if installed via homebrew
+    gg-setup
+  fi
+  [[ ! -f "$CONFIG_FILE" ]] && { echo "${red}Setup incomplete${reset}"; exit 1; }
+fi
+
+source "$CONFIG_FILE"
+types=${types:-$default_types}
+scopes=${scopes:-$default_scopes}
+
+# Parse options into arrays
+parse_options() {
+  local input="$1"
+  local -a keys=() values=()
+  IFS=',' read -A pairs <<< "$input"
+  for pair in "${pairs[@]}"; do
+    keys+=("${pair%%:*}")
+    values+=("${pair#*:}")
+  done
+  echo "${keys[*]}|${values[*]}"
+}
+
+# Display prompt with colored shortcuts
+show_prompt() {
+  local label="$1" options="$2"
+  IFS=',' read -A pairs <<< "$options"
+
+  echo -n "${dim}${label}:${reset} "
+  local i=1
+  for pair in "${pairs[@]}"; do
+    local key="${pair%%:*}"
+    local value="${pair#*:}"
+    local color="${colors[$((i % ${#colors[@]} + 1))]}"
+    echo -n "${dim}[${reset}${bold}${color}${key}${reset}${dim}]${value}${reset} "
+    ((i++))
+  done
+}
+
+# Get selection
+get_selection() {
+  local options="$1"
+  local input
+  read -k1 input
+  echo >&2  # newline to stderr so it doesn't get captured
+
+  IFS=',' read -A pairs <<< "$options"
+  for pair in "${pairs[@]}"; do
+    local key="${pair%%:*}"
+    local value="${pair#*:}"
+    if [[ "$input" == "$key" ]]; then
+      echo "$value"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Type selection
+show_prompt "Type" "$types"
+type=$(get_selection "$types") || { echo "${red}Invalid${reset}"; exit 1; }
+
+# Scope selection
+show_prompt "Scope" "$scopes"
+scope=$(get_selection "$scopes") || { echo "${red}Invalid${reset}"; exit 1; }
+
+# Message
+echo -n "${dim}Message:${reset} "
+read msg
+
+# Confirm and run
+cmd="gt create --all --message \"$type($scope): $msg\""
+echo "${dim}→${reset} ${bold}$cmd${reset}"
+echo -n "${dim}Run?${reset} ${bold}${green}y${reset}${dim}es${reset} ${bold}${red}n${reset}${dim}o${reset} "
+read -k1 confirm
+echo
+if [[ $confirm == "y" ]]; then
+  eval $cmd
+else
+  echo "${yellow}Aborted${reset}"
+fi
