@@ -37,11 +37,11 @@ types=f:feat,x:fix,c:chore
 scopes=s:surveys,p:product tours
 ```
 
-Customize your types and scopes any time by running `gg-setup`.
+Customize your types and scopes any time by running `gg-setup`, or edit the file directly:
 
 ```bash
-types=f:feat,x:fix,c:chore,d:docs,r:refactor
-scopes=a:api,w:web,m:mobile,i:infra
+types="f:feat,x:fix,c:chore,d:docs,r:refactor"
+scopes="a:api,w:web,m:mobile,i:infra"
 ```
 
 ## License
